@@ -5,13 +5,13 @@ import { Value } from "../types";
 import { broadcastMessage, delay } from "../utils";
 
 export async function node(
-    nodeId: number,
-    N: number,
-    F: number,
-    initialValue: Value,
-    isFaulty: boolean,
-    nodesAreReady: () => boolean,
-    setNodeIsReady: (index: number) => void
+  nodeId: number,
+  N: number,
+  F: number,
+  initialValue: Value,
+  isFaulty: boolean,
+  nodesAreReady: () => boolean,
+  setNodeIsReady: (index: number) => void
 ) {
   const node = express();
   node.use(express.json());
@@ -46,51 +46,51 @@ export async function node(
       res.status(500).send("Node stopped");
       return;
     }
-
+  
     while (!nodesAreReady()) {
       await delay(100);
     }
-
+  
     let step = 0;
-
+  
     // Initialisation : envoi des messages aux autres nœuds sans attendre de réponse
     broadcastMessage(nodeId, N, step, nodeState);
-
+  
     res.send("Initialization complete, waiting for consensus...");
   });
-
+  
   node.post("/message", (req, res) => {
     if (nodeState.killed) {
       res.status(500).send("Node stopped");
       return;
     }
-
+  
     const { step, value } = req.body;
-
+  
     if (!isFaulty && nodeState.k === step) {
       receivedMessages.push({ step, value });
     }
-
+  
     if (receivedMessages.length === N - 1) {
       const voteCounts: Record<string, number> = {};
-
+  
       receivedMessages.forEach(({ value }) => {
         if (value !== "?") {
           voteCounts[value] = (voteCounts[value] || 0) + 1;
         }
       });
-
+  
       const majorityValue = Object.keys(voteCounts).length
-          ? Object.keys(voteCounts).reduce((a, b) =>
-              voteCounts[a] > voteCounts[b] ? a : b
+        ? Object.keys(voteCounts).reduce((a, b) =>
+            voteCounts[a] > voteCounts[b] ? a : b
           )
-          : null;
-
+        : null;
+  
       if (majorityValue !== null && voteCounts[majorityValue] > (N - F) / 2) {
         nodeState.x = parseInt(majorityValue, 10) as Value; // Convertir en nombre
         nodeState.decided = true;
       }
-
+  
       // On passe à l'étape suivante
       if (nodeState.k !== null) {
         nodeState.k++;
@@ -98,10 +98,10 @@ export async function node(
         nodeState.k = 1; // Initialiser à 1 si null
       }
     }
-
+  
     res.sendStatus(200);
   });
-
+  
 
   node.get("/stop", (req, res) => {
     nodeState.killed = true;
